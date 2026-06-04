@@ -1,0 +1,48 @@
+[project]
+name = "ubatik-rag-histologia"
+version = "5.0.0"
+description = "RAG Multimodal de Histologia con Qdrant + ImageBIND/CLIP + LangGraph/ADK — Grupo 3 UBATIC 2026-27"
+requires-python = ">=3.10"
+dependencies = [
+    "qdrant-client>=1.17.0",
+    "langchain-google-genai>=2.0",
+    "langchain-core>=0.3",
+    "langgraph>=0.2",
+    "langchain-groq>=1.1.2",
+    "langchain-huggingface>=0.1.0",
+    "sentence-transformers>=3.0.0",
+    "huggingface-hub",
+    "torch>=2.5.0",
+    "torchvision>=0.20.0",
+    "numpy>=1.24",
+    "Pillow>=10.0",
+    "fastapi>=0.111.0",
+    "uvicorn>=0.30.0",
+    "python-multipart>=0.0.6",
+    "pymupdf>=1.27.1",
+    "pdf2image>=1.16",
+    "pytesseract>=0.3",
+    "python-dotenv>=1.0",
+    "nest-asyncio>=1.5",
+    "timm>=0.9.12",
+    "einops",
+    "langsmith>=0.1",
+    "openai>=1.0.0",
+]
+
+[tool.setuptools]
+packages = []
+
+[build-system]
+requires = ["setuptools>=68.0"]
+build-backend = "setuptools.build_meta"
+
+[[tool.uv.index]]
+name = "pytorch-cu118"
+url = "https://download.pytorch.org/whl/cu118"
+explicit = true
+
+[tool.uv.sources]
+torch = { index = "pytorch-cu118" }
+torchvision = { index = "pytorch-cu118" }
+torchaudio = { index = "pytorch-cu118" }

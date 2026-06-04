@@ -1,0 +1,13 @@
+{
+  "name": "ubatik-rag-histologia",
+  "version": "5.0.0",
+  "description": "RAG Multimodal de Histologia — Grupo 3 UBATIC",
+  "scripts": {
+    "dev": "uv run uvicorn server:app --host 0.0.0.0 --port 10010 --reload",
+    "start": "uv run uvicorn server:app --host 0.0.0.0 --port 10010",
+    "setup": "uv sync",
+    "test": "uv run python -m pytest tests/",
+    "ingest": "uv run python -m src.ingestion.pipeline"
+  },
+  "keywords": ["histology", "rag", "multimodal", "qdrant", "langgraph"]
+}

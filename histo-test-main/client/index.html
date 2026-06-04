@@ -1,0 +1,95 @@
+<!DOCTYPE html>
+<html lang="es">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>RAG Histología Neo4j — Chat</title>
+    <meta name="description" content="Sistema RAG Multimodal de Histología con Neo4j, CONCH/UNI y A2UI">
+    <link rel="stylesheet" href="/style.css?v=3">
+</head>
+
+<body>
+
+    <!-- Header -->
+    <header class="app-header">
+        <div class="header-left">
+            <span class="header-logo">🔬</span>
+            <div>
+                <div class="header-title">RAG Histología Neo4j</div>
+                <div class="header-subtitle">CONCH + UNI · LangGraph · A2UI v4.1</div>
+            </div>
+        </div>
+        <div class="header-right">
+            <div class="status-dot" id="status-dot"></div>
+            <span class="status-text" id="status-text">Conectando...</span>
+            <button class="header-btn" onclick="toggleTemario()" title="Ver temario">📚 Temario</button>
+            <button class="header-btn" onclick="limpiarImagen()" title="Limpiar imagen activa">🗑️ Imagen</button>
+        </div>
+    </header>
+
+    <!-- Messages -->
+    <div class="messages-container" id="messages-container">
+        <div class="welcome-screen" id="welcome-screen">
+            <div class="welcome-icon">🧬</div>
+            <h2 class="welcome-title">Asistente de Histología</h2>
+            <p class="welcome-desc">
+                Hacé preguntas sobre histología, patología y morfología tisular.
+                Podés subir imágenes histológicas para análisis visual comparativo.
+            </p>
+            <div class="welcome-chips">
+                <div class="chip" onclick="sendChip(this)">¿Qué tipos de epitelio existen?</div>
+                <div class="chip" onclick="sendChip(this)">Diferencias entre tejido conectivo laxo y denso</div>
+                <div class="chip" onclick="sendChip(this)">¿Qué tinción se usa para cartílago?</div>
+                <div class="chip" onclick="sendChip(this)">Describe las glándulas sudoríparas</div>
+            </div>
+        </div>
+    </div>
+
+
+    <!-- Temario Overlay -->
+    <div class="temario-overlay" id="temario-overlay" onclick="toggleTemario()"></div>
+    <div class="temario-panel" id="temario-panel">
+        <div class="temario-header">
+            <h3>📚 Temario de Histología</h3>
+            <button class="temario-close" onclick="toggleTemario()">×</button>
+        </div>
+        <div class="temario-list" id="temario-list">
+            <p style="color: var(--text-muted); font-size: 0.85rem;">Cargando...</p>
+        </div>
+    </div>
+
+    <!-- Input area -->
+    <div class="input-area">
+        <div class="image-preview-bar" id="image-preview-bar">
+            <img class="image-preview-thumb" id="image-thumb" src="" alt="preview">
+            <div class="image-preview-info">
+                <div class="image-preview-name" id="image-name">imagen.png</div>
+                <div class="image-preview-size" id="image-size">0 KB</div>
+            </div>
+            <button class="image-preview-remove" onclick="removeImage()" title="Quitar imagen">×</button>
+        </div>
+        <div class="input-row">
+            <div class="input-actions">
+                <button class="action-btn" onclick="document.getElementById('image-input').click()"
+                    title="Subir imagen">
+                    🖼️
+                </button>
+                <input type="file" id="image-input" accept="image/*" onchange="handleImageSelect(event)">
+            </div>
+            <div class="input-wrapper">
+                <textarea id="chat-input" rows="1" placeholder="Escribí tu pregunta de histología..."
+                    onkeydown="handleKeyDown(event)" oninput="autoResize(this)"></textarea>
+            </div>
+            <div class="input-actions">
+                <button class="action-btn send" id="send-btn" onclick="sendMessage()" title="Enviar">
+                    ➤
+                </button>
+            </div>
+        </div>
+    </div>
+
+    <script src="/app.js?v=3"></script>
+</body>
+
+</html>
