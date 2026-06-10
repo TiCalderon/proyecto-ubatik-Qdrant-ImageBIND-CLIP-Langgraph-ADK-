@@ -115,6 +115,7 @@ body {
 }
 .message.user .msg-content { background: var(--accent); color: #fff; border-bottom-right-radius: 4px; }
 .message.assistant .msg-content { background: var(--bg-card); border: 1px solid var(--border); border-bottom-left-radius: 4px; }
+.message.error .msg-content { background: rgba(248, 113, 113, 0.1); border: 1px solid var(--danger); border-bottom-left-radius: 4px; color: #fca5a5; }
 
 .msg-content h1, .msg-content h2, .msg-content h3 { margin: 8px 0 4px; color: var(--accent); }
 .msg-content h2 { font-size: 1.1rem; }
@@ -122,6 +123,10 @@ body {
 .msg-content code { background: rgba(124,92,252,0.15); padding: 2px 6px; border-radius: 4px; font-size: 0.8rem; }
 .msg-content ul { margin: 6px 0; padding-left: 20px; }
 .msg-content li { margin: 2px 0; }
+
+.msg-images { display: flex; flex-wrap: wrap; gap: 8px; margin-top: 10px; }
+.chat-uploaded-image { max-width: 240px; max-height: 240px; object-fit: cover; border-radius: var(--radius-sm); border: 1px solid var(--border); cursor: pointer; transition: var(--transition); }
+.chat-uploaded-image:hover { border-color: var(--accent); opacity: 0.9; box-shadow: 0 0 10px var(--accent-glow); }
 
 .structure-badge {
   background: rgba(74, 222, 128, 0.15) !important;

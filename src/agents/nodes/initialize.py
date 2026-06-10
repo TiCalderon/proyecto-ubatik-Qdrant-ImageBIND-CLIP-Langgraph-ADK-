@@ -1,6 +1,6 @@
 import logging
 from src.agents.state import AgentState
-from src.models.embeddings import ClipEmbedder
+from src.models.embeddings import MultimodalEmbedder
 from src.models.llm import LLMProvider
 from src.memory.conversation import ConversationMemory
 from src.config import Config
@@ -22,7 +22,7 @@ Mensaje: {mensaje}
 Responde SOLO con "SI" o "NO"."""
 
 
-async def nodo_inicializar(state: AgentState, embedder: ClipEmbedder, memory: ConversationMemory) -> AgentState:
+async def nodo_inicializar(state: AgentState, embedder: MultimodalEmbedder, memory: ConversationMemory) -> AgentState:
     query = state["query"]
     historial = memory.get_history_text()
 

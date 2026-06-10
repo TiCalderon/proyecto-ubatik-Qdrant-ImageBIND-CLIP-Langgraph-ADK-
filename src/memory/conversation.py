@@ -6,15 +6,15 @@ import numpy as np
 from typing import Optional
 from qdrant_client import QdrantClient
 from qdrant_client.http import models as qmodels
-from src.models.embeddings import ClipEmbedder
+from src.models.embeddings import MultimodalEmbedder
 from src.config import Config
 
 logger = logging.getLogger(__name__)
 
 
 class ConversationMemory:
-    def __init__(self, embedder: ClipEmbedder = None, qdrant_path: str = None):
-        self.embedder = embedder or ClipEmbedder()
+    def __init__(self, embedder: MultimodalEmbedder = None, qdrant_path: str = None):
+        self.embedder = embedder or MultimodalEmbedder()
         self.qdrant_path = qdrant_path or Config.DIRECTORIO_QDRANT_MEMORIA
         self.collection = "memoria_histo_g3"
         self._client = None

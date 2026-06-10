@@ -35,7 +35,9 @@ function formatSize(bytes) {
 function renderMarkdown(text) {
   if (!text) return '';
   let html = text
-    .replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;')
+    .replace(/&/g, '&amp;')
+    .replace(/</g, '&lt;')
+    .replace(/>/g, '&gt;')
     .replace(/^### (.+)$/gm, '<h3>$1</h3>')
     .replace(/^## (.+)$/gm, '<h2>$1</h2>')
     .replace(/^# (.+)$/gm, '<h1>$1</h1>')
@@ -52,11 +54,21 @@ function addMessage(role, content, images = []) {
   welcomeScreen.style.display = 'none';
   const div = document.createElement('div');
   div.className = 'message ' + role;
-  if (role === 'assistant') {
-    div.innerHTML = '<div class="msg-content">' + renderMarkdown(content) + '</div>';
-  } else {
-    div.innerHTML = '<div class="msg-content">' + content + '</div>';
+  
+  let innerContent = role === 'assistant' || role === 'error' ? renderMarkdown(content) : content;
+  
+  if (images && images.length > 0) {
+    let imagesHtml = '<div class="msg-images">';
+    images.forEach(img => {
+      if (img.isUserUpload && img.base64) {
+        imagesHtml += `<img src="data:image/png;base64,${img.base64}" class="chat-uploaded-image" onclick="openLightbox(this.src, '')" />`;
+      }
+    });
+    imagesHtml += '</div>';
+    innerContent += imagesHtml;
   }
+  
+  div.innerHTML = '<div class="msg-content">' + innerContent + '</div>';
   messagesContainer.appendChild(div);
   messagesContainer.scrollTop = messagesContainer.scrollHeight;
 }
@@ -113,7 +125,7 @@ async function sendMessage() {
 
   isWaiting = true;
   btnSend.disabled = true;
-  addMessage('user', query);
+  addMessage('user', query, pendingImageBase64 ? [{base64: pendingImageBase64, isUserUpload: true}] : []);
   queryInput.value = '';
   imgPreviewBar.style.display = 'none';
 
@@ -134,6 +146,13 @@ async function sendMessage() {
       body: JSON.stringify(body),
     });
     const data = await resp.json();
+    if (resp.status >= 400) {
+      loadingDiv.remove();
+      addMessage('error', 'Error del servidor: ' + (data.detail || 'Ocurrió un problema inesperado.'));
+      btnSend.disabled = false;
+      return;
+    }
+
     loadingDiv.remove();
 
     addMessage('assistant', data.respuesta, data.imagenes_recuperadas);
@@ -148,9 +167,12 @@ async function sendMessage() {
     }
   } catch (err) {
     loadingDiv.remove();
-    addMessage('assistant', 'Error de conexion: ' + err.message);
+    let msg = 'Error de conexión: ' + err.message;
+    if (err.message.toLowerCase().includes('networkerror') || err.message.toLowerCase().includes('failed to fetch')) {
+      msg = 'El servidor aún se está inicializando o no está disponible. Por favor, espera unos instantes hasta que el indicador de estado (arriba a la derecha) cambie a verde.';
+    }
+    addMessage('error', msg);
   }
-
   pendingImageBase64 = null;
   pendingImageName = null;
   isWaiting = false;

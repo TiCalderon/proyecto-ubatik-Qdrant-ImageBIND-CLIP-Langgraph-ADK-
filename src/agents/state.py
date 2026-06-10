@@ -10,7 +10,7 @@ class AgentState(TypedDict):
     tiene_imagen: bool
     imagen_path: str
     imagen_base64: str
-    imagen_embedding: list[float]
+    imagen_embedding: dict
     imagen_analisis: str
     imagen_activa: bool
     solicita_imagenes: bool
@@ -40,7 +40,7 @@ def initial_state(query: str, image_path: str = "", image_base64: str = "") -> A
         tiene_imagen=bool(image_path or image_base64),
         imagen_path=image_path,
         imagen_base64=image_base64,
-        imagen_embedding=[],
+        imagen_embedding={},
         imagen_analisis="",
         imagen_activa=False,
         solicita_imagenes=False,

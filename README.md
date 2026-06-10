@@ -8,13 +8,16 @@ Sistema multimodal de Recuperacion Aumentada por Generacion (RAG) para la identi
 
 1. **Reconocimiento de imagenes**: Al pasarle una imagen del manual, el agente identifica cual es y la asocia con su descripcion correcta.
 2. **Busqueda texto -> imagen**: Al describir una imagen con lenguaje natural, el agente recupera la imagen correspondiente del manual.
-3. **Busqueda hibrida**: Combina busqueda semantica de texto con busqueda visual de imagenes usando CLIP.
+3. **Busqueda hibrida**: Combina busqueda semantica de texto con busqueda visual de imagenes usando CLIP (u otras tecnologías a especificar).
 
 ## Stack Tecnologico
 
+> [!TIP]
+> **Base de Datos Local:** Ahora el proyecto utiliza **Qdrant de forma local** por defecto. Esto almacena los vectores directamente en tu computadora y evita los problemas de expiración o eliminación de clústeres gratuitos en la nube por inactividad.
+
 | Componente | Tecnologia |
 |---|---|
-| Vector Store | Qdrant (Cloud o local) |
+| Vector Store | Qdrant (Local integrado) |
 | Embeddings | CLIP ViT-B/32 (texto + imagen) |
 | Orquestacion | LangGraph (StateGraph) |
 | LLM | Gemini 2.0 Flash / Groq Llama 4 Scout |
@@ -55,12 +58,7 @@ START
 - Poppler (para pdf2image): `sudo apt install poppler-utils`
 - Tesseract OCR (opcional): `sudo apt install tesseract-ocr tesseract-ocr-spa`
 
-## Versiones de Arquitectura
 
-El repositorio contiene **dos versiones separadas** del sistema. No están diseñadas para ejecutarse simultáneamente en el mismo servidor; debes elegir cuál inicializar:
-
-1. **Versión Estable (Qdrant Puro)**: Ubicada en la raíz (`src/` y `server.py`). Utiliza Qdrant como base de datos vectorial principal y el modelo genérico CLIP de OpenAI. Es ideal para estabilidad y bajo consumo de recursos, pero **su rendimiento para recuperar imágenes a partir de descripciones médicas complejas en lenguaje natural es básico**.
-2. **Versión Avanzada "Laboratorio" (v4.2)**: Ubicada aislada en la carpeta `/histo-test-main`. Utiliza **Neo4j** como base de conocimiento vectorial principal y Qdrant solo para memoria conversacional. Incorpora modelos médicos especializados como UNI (requiere `HF_TOKEN`) y PLIP. **Esta versión tiene un rendimiento inmensamente superior al buscar imágenes usando lenguaje natural médico**, ya que sus modelos fueron entrenados específicamente con miles de pares de textos e imágenes de patología histológica.
 
 ## Instalación y Ejecución
 
@@ -76,45 +74,35 @@ curl -LsSf https://astral.sh/uv/install.sh | sh
 
 # Configurar variables de entorno
 cp .env.example .env
-# IMPORTANTE: Edita .env con tus API keys (Gemini, Groq, Qdrant, y HF_TOKEN para la version avanzada)
+La versión raíz cuenta con scripts de automatización que instalarán todas las dependencias, configurarán el sistema y crearán íconos de acceso rápido para ti.
 
-# Instalar dependencias
-uv sync
-```
+### 1. Configuración Inicial (OBLIGATORIA)
+1. Copia el archivo `.env.example` y renómbralo a `.env`.
+2. Abre `.env` y asegúrate de configurar tu **Hugging Face Token** (`HF_TOKEN`) y tus API keys.
+3. Si deseas usar tu propia base de conocimiento, coloca tus libros/PDFs de histología dentro de la carpeta `data/pdf/` (si no existe, puedes crearla).
 
-### Opción A: Ejecutar la Versión Estable (Raíz / Qdrant)
+### 2. Lanzamiento Automatizado (Un solo clic)
 
-Si deseas utilizar la arquitectura principal, ejecuta los comandos desde la raíz del proyecto:
+Dependiendo de tu sistema operativo, ejecuta el script correspondiente en la raíz del proyecto. Este script verificará dependencias, descargará los modelos de Inteligencia Artificial (solo la primera vez), e iniciará la aplicación en tu navegador. 
 
-```bash
-# (Opcional) Indexar PDFs del manual
-mkdir -p data/pdf
-# Copia tus PDFs a data/pdf/ y luego:
-uv run python -m src.ingestion.pipeline
+> [!NOTE]
+> **Auto-indexación**: Cada vez que inicies el sistema, este verificará automáticamente la carpeta `data/pdf/` e indexará de forma automática cualquier archivo nuevo que hayas agregado, integrándolo a la base de conocimiento sin necesidad de ejecutar comandos adicionales.
 
-# Iniciar el servidor (levanta FastAPI y sirve el Frontend)
-npm run dev
-# o directamente: uv run uvicorn server:app --host 0.0.0.0 --port 10010 --reload
-```
-👉 **Interactuar**: Abre [http://localhost:10010](http://localhost:10010) en tu navegador.
+*   **Para Windows:**
+    Haz doble clic en el archivo `launch_windows.bat`. 
+    *El script generará automáticamente un ícono de acceso directo en tu Escritorio para futuras ejecuciones.*
+*   **Para Linux (Ubuntu/Debian):**
+    Abre una terminal en esta carpeta y ejecuta:
+    ```bash
+    ./launch_linux.sh
+    ```
+    *El script creará un acceso directo (archivo `.desktop`) en tu Escritorio.*
 
-### Opción B: Ejecutar la Versión Avanzada (Neo4j / UNI)
+### ¿Cómo apagar el sistema?
+El servidor y la base de datos local corren integrados en la consola. **Cerrar la pestaña del navegador NO detiene el sistema.** 
+Para apagarlo por completo, simplemente **cierra la ventana negra de la terminal** que se abrió al ejecutar el script (o presiona `Ctrl+C` en ella).
 
-Si deseas utilizar las capacidades gráficas y los modelos médicos de alto rendimiento, debes operar dentro de la carpeta de pruebas:
 
-```bash
-cd histo-test-main
-
-# 1. Iniciar el backend RAG con Neo4j
-python ne4j-histo.py
-
-# 2. En otra ventana de terminal, sirve el frontend (cliente estático)
-# Si estás usando npm:
-npm run dev
-# Alternativa simple con Python:
-python -m http.server 10005 -d client/
-```
-👉 **Interactuar**: Abre [http://localhost:10005](http://localhost:10005) (o el puerto que asigne tu servidor) en tu navegador.
 
 ## Endpoints API
 

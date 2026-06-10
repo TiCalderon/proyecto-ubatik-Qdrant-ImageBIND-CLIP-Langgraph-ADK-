@@ -1,11 +1,11 @@
 import numpy as np
 import pytest
-from src.models.embeddings import ClipEmbedder
+from src.models.embeddings import MultimodalEmbedder
 
 
 @pytest.fixture(scope="module")
 def embedder():
-    return ClipEmbedder(device="cpu")
+    return MultimodalEmbedder(device="cpu")
 
 
 def test_embed_text_dimension(embedder):

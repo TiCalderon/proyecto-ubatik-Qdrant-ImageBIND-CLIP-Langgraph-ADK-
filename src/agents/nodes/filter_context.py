@@ -42,7 +42,7 @@ async def nodo_filtrar_contexto(state: AgentState) -> AgentState:
 
     max_results = 10
     contexto["texto"] = contexto["texto"][:max_results]
-    contexto["imagenes"] = contexto["imagenes"][:5]
+    contexto["imagenes"] = contexto["imagenes"][:10]
 
     state["contexto_filtrado"] = contexto
     state["trayectoria"].append({
