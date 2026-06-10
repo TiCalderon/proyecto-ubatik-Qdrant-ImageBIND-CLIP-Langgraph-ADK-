@@ -1,14 +1,14 @@
 import logging
 import numpy as np
-from src.models.embeddings import ClipEmbedder
+from src.models.embeddings import MultimodalEmbedder
 from src.config import Config
 
 logger = logging.getLogger(__name__)
 
 
 class ClasificadorSemantico:
-    def __init__(self, embedder: ClipEmbedder = None):
-        self.embedder = embedder or ClipEmbedder()
+    def __init__(self, embedder: MultimodalEmbedder = None):
+        self.embedder = embedder or MultimodalEmbedder()
         self.anchors = Config.TEMARIO_ANCHORS
         self._anchor_embeddings = None
 

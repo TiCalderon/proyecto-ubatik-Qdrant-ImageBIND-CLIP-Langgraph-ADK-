@@ -24,9 +24,10 @@ class Config:
     CHUNK_SIZE = 500
     CHUNK_OVERLAP = 200
     DIM_TEXTO = 512
-    DIM_IMAGEN = 512
-    SIMILARITY_THRESHOLD_TEXTO = 0.60
-    SIMILARITY_THRESHOLD_IMAGEN = 0.70
+    DIM_UNI = 1024
+    DIM_PLIP = 512
+    SIMILARITY_THRESHOLD_TEXTO = 0.65
+    SIMILARITY_THRESHOLD_IMAGEN = 0.75
     CLASIFICADOR_SEMANTICO_THRESHOLD = 0.45
     CLASIFICADOR_IMAGEN_THRESHOLD = 0.27
     TOP_K_TEXTO = 10
@@ -34,8 +35,9 @@ class Config:
     MAX_RESULTADOS = 15
     MAX_MEMORIA_INTERACCIONES = 10
     MEMORIA_RESUMEN_CADA = 5
-    DIRECTORIO_PDFS = os.path.join(os.path.dirname(os.path.dirname(__file__)), "data", "pdf")
-    DIRECTORIO_IMAGENES_EXTRAIDAS = os.path.join(os.path.dirname(os.path.dirname(__file__)), "data", "imagenes_extraidas")
+    DIRECTORIO_DATA = os.path.join(os.path.dirname(os.path.dirname(__file__)), "data")
+    DIRECTORIO_PDFS = os.path.join(DIRECTORIO_DATA, "pdf")
+    DIRECTORIO_IMAGENES_EXTRAIDAS = os.path.join(DIRECTORIO_DATA, "imagenes_extraidas")
     DIRECTORIO_IMAGENES_CHAT = os.path.join(os.path.dirname(os.path.dirname(__file__)), "imagenes_chat")
     DIRECTORIO_QDRANT_MEMORIA = os.path.join(os.path.dirname(os.path.dirname(__file__)), "qdrant_memoria")
 

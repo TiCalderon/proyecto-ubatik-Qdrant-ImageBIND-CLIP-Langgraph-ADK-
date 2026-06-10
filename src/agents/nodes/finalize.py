@@ -4,13 +4,13 @@ import base64
 import logging
 import numpy as np
 from src.agents.state import AgentState
-from src.models.embeddings import ClipEmbedder
+from src.models.embeddings import MultimodalEmbedder
 from src.memory.conversation import ConversationMemory
 
 logger = logging.getLogger(__name__)
 
 
-async def nodo_finalizar(state: AgentState, embedder: ClipEmbedder, memory: ConversationMemory) -> AgentState:
+async def nodo_finalizar(state: AgentState, embedder: MultimodalEmbedder, memory: ConversationMemory) -> AgentState:
     state["trayectoria"].append({"nodo": "finalizar", "accion": "inicio"})
 
     respuesta = state.get("respuesta", "")
@@ -18,10 +18,10 @@ async def nodo_finalizar(state: AgentState, embedder: ClipEmbedder, memory: Conv
 
     imagenes_recuperadas = []
     for label in imagenes_detectadas:
-        for _, payload in state.get("contexto_filtrado", {}).get("imagenes", []):
-            if payload.get("etiqueta", "").lower() == label.lower():
-                path = payload.get("path", "")
-                nombre = payload.get("nombre_archivo", "")
+        for img_dict in state.get("contexto_filtrado", {}).get("imagenes", []):
+            if img_dict.get("etiqueta", "").lower() == label.lower():
+                path = img_dict.get("path", "")
+                nombre = img_dict.get("nombre_archivo", "")
                 if path and os.path.exists(path):
                     try:
                         with open(path, "rb") as f:
@@ -35,13 +35,13 @@ async def nodo_finalizar(state: AgentState, embedder: ClipEmbedder, memory: Conv
                     "nombre_archivo": nombre,
                     "path": path,
                     "base64": b64,
-                    "caption": payload.get("caption", ""),
-                    "pagina": payload.get("pagina", 0),
-                    "score": payload.get("score", 0),
+                    "caption": img_dict.get("caption", ""),
+                    "pagina": img_dict.get("pagina", 0),
+                    "score": img_dict.get("score", 0),
                 })
                 break
 
-    if len(imagenes_recuperadas) < 3 and state.get("modo") in ("solicitud_imagenes", "multimodal"):
+    if not imagenes_recuperadas and state.get("modo") in ("solicitud_imagenes", "multimodal"):
         sem_matches = _busqueda_semantica_etiquetas(respuesta, state, embedder)
         for sm in sem_matches:
             if sm["etiqueta"] not in [ir["etiqueta"] for ir in imagenes_recuperadas]:
@@ -83,7 +83,7 @@ def _extraer_referencias_imagenes(texto: str) -> list[str]:
     return list(encontradas)[:10]
 
 
-def _busqueda_semantica_etiquetas(respuesta: str, state: AgentState, embedder: ClipEmbedder) -> list[dict]:
+def _busqueda_semantica_etiquetas(respuesta: str, state: AgentState, embedder: MultimodalEmbedder) -> list[dict]:
     matches = []
     try:
         if not state.get("contexto_filtrado", {}).get("imagenes"):

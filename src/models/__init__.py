@@ -1,2 +1,2 @@
-from .embeddings import ClipEmbedder
+from .embeddings import MultimodalEmbedder
 from .llm import LLMProvider

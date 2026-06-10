@@ -18,26 +18,29 @@ Historial: {historial}
 Contexto del manual:
 {contexto}"""
 
-SYSTEM_MULTIMODAL = """Eres un patologo experto. El usuario ha subido una imagen histologica para identificacion.
+SYSTEM_MULTIMODAL = """Eres un asistente de histologia. Responde SOLO con el contenido del manual o la imagen visible en el chat.
 
-Prioridad maxima: Reporta la ESTRUCTURA IDENTIFICADA basandote en el analisis comparativo y el contexto.
+REGLAS FUNDAMENTALES:
+1. PRIORIDAD ABSOLUTA: La DESCRIPCION TEXTUAL DEL MANUAL de las imágenes recuperadas es la fuente de verdad. Si el texto del manual dice 'Tejido nervioso corteza cerebelosa', ESO es lo correcto, sin importar tu propia interpretación visual de la imagen.
+   ATENCION: La imagen marcada como '⭐ MEJOR MATCH VISUAL' es el resultado de una comparación matemática directa imagen-vs-referencia y tiene MÁXIMA PRIORIDAD. Usa la descripción del manual CORRESPONDIENTE A ESTA ESTRUCTURA para tu diagnóstico.
+2. Cita: [Manual: archivo] | [Imagen: archivo]
+3. Para cada 'IMAGEN DE REFERENCIA' recuperada, indica el nombre y la descripción textual del manual.
+4. NO hagas diagnósticos propios basados en tu interpretación visual. Usa SIEMPRE el texto del manual asociado a la imagen.
+5. No des diagnósticos clínicos salvo que estén explícitos en el manual.
 
-Contexto del manual:
+Contexto del manual (Texto e Imágenes recuperadas):
 {contexto}
 
-Analisis de la imagen subida:
+Analisis preliminar de la imagen subida:
 {analisis_imagen}
-
-Analisis comparativo con imagenes del manual:
-{analisis_comparativo}
 
 Historial: {historial}
 
 Responde en español, con estas secciones:
-1. ESTRUCTURA IDENTIFICADA: (obligatorio, max prioridad)
-2. DESCRIPCION: segun el manual
-3. COMPARACION: con las imagenes de referencia
-4. FUENTES: cita las paginas del manual"""
+1. ESTRUCTURA IDENTIFICADA: (obligatorio, basado en el MEJOR MATCH VISUAL)
+2. DESCRIPCION: según el manual para esa estructura
+3. COMPARACION: con las otras imágenes de referencia
+4. FUENTES: cita las páginas del manual"""
 
 SYSTEM_SOLICITUD_IMAGENES = """Eres un asistente de histologia. El usuario quiere ver imagenes del manual.
 
@@ -59,29 +62,40 @@ async def nodo_generar_respuesta(state: AgentState, memory: ConversationMemory) 
     historial = memory.get_history_text()
     contexto_textos = "\n\n".join([
         f"[{c['fuente']} p.{c['pagina']} score={c['score']:.2f}] {c['texto']}"
-        for c in state["contexto_filtrado"]["texto"]
+        for c in state.get("contexto_filtrado", {}).get("texto", [])
     ])
+
+    contexto_imagenes = []
+    for i, c in enumerate(state.get("contexto_filtrado", {}).get("imagenes", [])):
+        marcador = " ⭐ MEJOR MATCH VISUAL" if i == 0 else ""
+        bloque = f"[{c['etiqueta']} p.{c['pagina']} score={c['score']:.2f}{marcador}]\n"
+        bloque += f"Caption: {c['caption']}"
+        contexto_imagenes.append(bloque)
+    contexto_imagenes_str = "\n\n".join(contexto_imagenes)
+
+    contexto_completo = contexto_textos
+    if contexto_imagenes_str:
+        contexto_completo += "\n\n--- IMAGENES RECUPERADAS (SIMILITUD VISUAL) ---\n\n" + contexto_imagenes_str
 
     if modo == "texto":
         prompt = SYSTEM_TEXTO.format(
             fuente="manual_histologia",
             historial=historial,
-            contexto=contexto_textos or "No se encontro contexto relevante.",
+            contexto=contexto_completo or "No se encontro contexto relevante.",
         )
         user_msg = state["query_reescrita"]
 
     elif modo == "solicitud_imagenes":
         prompt = SYSTEM_SOLICITUD_IMAGENES.format(
             historial=historial,
-            contexto=contexto_textos or "No se encontro contexto.",
+            contexto=contexto_completo or "No se encontro contexto.",
         )
         user_msg = state["query_reescrita"]
 
     elif modo == "multimodal":
         prompt = SYSTEM_MULTIMODAL.format(
-            contexto=contexto_textos or "No se encontro contexto.",
+            contexto=contexto_completo or "No se encontro contexto.",
             analisis_imagen=state.get("imagen_analisis", "No disponible"),
-            analisis_comparativo=state.get("analisis_comparativo", "No disponible"),
             historial=historial,
         )
         user_msg = state["query_reescrita"]
@@ -89,7 +103,7 @@ async def nodo_generar_respuesta(state: AgentState, memory: ConversationMemory) 
         prompt = SYSTEM_TEXTO.format(
             fuente="manual_histologia",
             historial=historial,
-            contexto=contexto_textos or "No disponible",
+            contexto=contexto_completo or "No disponible",
         )
         user_msg = state["query_reescrita"]
 

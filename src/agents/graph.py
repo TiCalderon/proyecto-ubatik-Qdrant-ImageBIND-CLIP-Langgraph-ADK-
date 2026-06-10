@@ -10,7 +10,7 @@ from src.agents.nodes.search import nodo_buscar
 from src.agents.nodes.filter_context import nodo_filtrar_contexto
 from src.agents.nodes.generate_response import nodo_generar_respuesta
 from src.agents.nodes.finalize import nodo_finalizar
-from src.models.embeddings import ClipEmbedder
+from src.models.embeddings import MultimodalEmbedder
 from src.ingestion.indexer import QdrantIndexer
 from src.search.semantic_classifier import ClasificadorSemantico
 from src.memory.conversation import ConversationMemory
@@ -20,7 +20,7 @@ logger = logging.getLogger(__name__)
 
 class AsistenteHistologia:
     def __init__(self):
-        self.embedder = ClipEmbedder()
+        self.embedder = MultimodalEmbedder()
         self.indexer = QdrantIndexer()
         self.clasificador = ClasificadorSemantico(self.embedder)
         self.memory = ConversationMemory()

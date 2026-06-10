@@ -65,68 +65,32 @@ class PDFExtractor:
         imagenes = []
         for page_num in range(len(self.doc)):
             page = self.doc[page_num]
-            image_list = page.get_images(full=True)
-            valid_images = []
-            for img_info in image_list:
-                xref = img_info[0]
-                base_image = self.doc.extract_image(xref)
-                if not base_image:
-                    continue
-                image_bytes = base_image["image"]
-                width = base_image["width"]
-                height = base_image["height"]
-                if width >= min_width and height >= min_height:
-                    valid_images.append({
-                        "xref": xref,
-                        "bytes": image_bytes,
-                        "width": width,
-                        "height": height,
-                        "ext": base_image["ext"],
-                    })
-            if valid_images:
-                largest = max(valid_images, key=lambda x: x["width"] * x["height"])
-                img = Image.open(__import__("io").BytesIO(largest["bytes"])).convert("RGB")
-                img = self._preprocess_image(img)
-                if max(img.size) < target_size:
-                    img = self._magnify_image(img, target_size)
-                safe_name = re.sub(r'[^a-zA-Z0-9_]', '_', self.pdf_filename.replace(".pdf", ""))
-                filename = f"{safe_name}_pag{page_num+1:03d}.png"
-                output_path = os.path.join(self.output_dir, filename)
-                img.save(output_path, "PNG")
-                page_text = page.get_text("text")
-                ocr_text = self._extraer_ocr(image_bytes)
-                caption = self._extraer_caption(page_text, largest, page)
-                label = self._extraer_etiqueta(page_text)
-                imagenes.append({
-                    "path": output_path,
-                    "nombre_archivo": filename,
-                    "fuente_pdf": self.pdf_filename,
-                    "pagina": page_num + 1,
-                    "ocr_text": ocr_text,
-                    "texto_pagina": page_text.strip()[:2000],
-                    "caption": caption,
-                    "etiqueta": label,
-                    "width": width,
-                    "height": height,
-                })
-            else:
-                pix = page.get_pixmap(dpi=150)
-                filename = f"{self.pdf_filename.replace('.pdf','')}_pag{page_num+1:03d}_render.png"
-                output_path = os.path.join(self.output_dir, filename)
-                pix.save(output_path)
-                page_text = page.get_text("text")
-                imagenes.append({
-                    "path": output_path,
-                    "nombre_archivo": filename,
-                    "fuente_pdf": self.pdf_filename,
-                    "pagina": page_num + 1,
-                    "ocr_text": "",
-                    "texto_pagina": page_text.strip()[:2000],
-                    "caption": "",
-                    "etiqueta": "",
-                    "width": pix.width,
-                    "height": pix.height,
-                })
+            pix = page.get_pixmap(dpi=150)
+            safe_name = re.sub(r'[^a-zA-Z0-9_]', '_', self.pdf_filename.replace(".pdf", ""))
+            filename = f"{safe_name}_pag{page_num+1:03d}.png"
+            output_path = os.path.join(self.output_dir, filename)
+            pix.save(output_path)
+            
+            page_text = page.get_text("text")
+            
+            # Since we render the whole page, OCR is not strictly needed because we have page_text,
+            # but we can keep it empty to save processing time.
+            ocr_text = ""
+            caption = self._extraer_caption(page_text, {}, page)
+            label = self._extraer_etiqueta(page_text)
+            
+            imagenes.append({
+                "path": output_path,
+                "nombre_archivo": filename,
+                "fuente_pdf": self.pdf_filename,
+                "pagina": page_num + 1,
+                "ocr_text": ocr_text,
+                "texto_pagina": page_text.strip()[:2000],
+                "caption": caption,
+                "etiqueta": label,
+                "width": pix.width,
+                "height": pix.height,
+            })
         return imagenes
 
     @staticmethod

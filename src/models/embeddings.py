@@ -2,83 +2,60 @@ import os
 import numpy as np
 import torch
 from PIL import Image
-from torchvision import transforms
+import timm
 from transformers import CLIPProcessor, CLIPModel
-from sentence_transformers import SentenceTransformer
+from huggingface_hub import login
 from src.config import Config
 
 
-class ClipEmbedder:
+class MultimodalEmbedder:
     def __init__(self, device: str = None):
         self.device = device or ("cuda" if torch.cuda.is_available() else "cpu")
-        self._clip_model = None
-        self._clip_processor = None
-        self._text_model = None
+        self._uni_model = None
+        self._uni_transform = None
+        self._plip_model = None
+        self._plip_processor = None
+        
+        if Config.HF_TOKEN:
+            try:
+                login(token=Config.HF_TOKEN)
+            except Exception as e:
+                print(f"Error login HF: {e}")
 
     @property
-    def clip_model(self):
-        if self._clip_model is None:
-            model_id = "openai/clip-vit-base-patch32"
-            self._clip_model = CLIPModel.from_pretrained(
-                model_id, token=Config.HF_TOKEN or True
+    def plip_model(self):
+        if self._plip_model is None:
+            self._plip_model = CLIPModel.from_pretrained("vinid/plip").to(self.device).eval()
+            self._plip_processor = CLIPProcessor.from_pretrained("vinid/plip")
+        return self._plip_model
+
+    @property
+    def plip_processor(self):
+        if self._plip_processor is None:
+            _ = self.plip_model
+        return self._plip_processor
+
+    @property
+    def uni_model(self):
+        if self._uni_model is None:
+            self._uni_model = timm.create_model(
+                "hf_hub:MahmoodLab/UNI", 
+                pretrained=True, 
+                init_values=1e-5, 
+                dynamic_img_size=True
             ).to(self.device).eval()
-            self._clip_processor = CLIPProcessor.from_pretrained(model_id)
-        return self._clip_model
+        return self._uni_model
 
     @property
-    def clip_processor(self):
-        if self._clip_processor is None:
-            _ = self.clip_model
-        return self._clip_processor
-
-    @property
-    def text_model(self):
-        if self._text_model is None:
-            self._text_model = SentenceTransformer(
-                "sentence-transformers/all-MiniLM-L6-v2",
-                device=self.device,
-            )
-        return self._text_model
-
-    def embed_text(self, text: str, use_minilm: bool = False) -> np.ndarray:
-        if use_minilm:
-            return self.text_model.encode(text, normalize_embeddings=True)
-        inputs = self.clip_processor(text=text, return_tensors="pt", padding=True, truncation=True)
-        inputs = {k: v.to(self.device) for k, v in inputs.items()}
-        with torch.no_grad():
-            emb = self.clip_model.get_text_features(**inputs)
-        emb = emb.cpu().numpy().flatten()
-        return emb / np.linalg.norm(emb)
-
-    def embed_texts(self, texts: list[str], use_minilm: bool = False) -> list[np.ndarray]:
-        if use_minilm:
-            return self.text_model.encode(texts, normalize_embeddings=True)
-        results = []
-        for text in texts:
-            results.append(self.embed_text(text, use_minilm=False))
-        return results
-
-    def embed_image(self, image_path: str, preprocess: bool = True) -> np.ndarray:
-        img = Image.open(image_path).convert("RGB")
-        if preprocess:
-            img = self._preprocess_image(img)
-        inputs = self.clip_processor(images=img, return_tensors="pt")
-        inputs = {k: v.to(self.device) for k, v in inputs.items()}
-        with torch.no_grad():
-            emb = self.clip_model.get_image_features(**inputs)
-        emb = emb.cpu().numpy().flatten()
-        return emb / np.linalg.norm(emb)
-
-    def embed_image_pil(self, pil_image: Image.Image, preprocess: bool = True) -> np.ndarray:
-        img = pil_image.convert("RGB")
-        if preprocess:
-            img = self._preprocess_image(img)
-        inputs = self.clip_processor(images=img, return_tensors="pt")
-        inputs = {k: v.to(self.device) for k, v in inputs.items()}
-        with torch.no_grad():
-            emb = self.clip_model.get_image_features(**inputs)
-        emb = emb.cpu().numpy().flatten()
-        return emb / np.linalg.norm(emb)
+    def uni_transform(self):
+        if self._uni_transform is None:
+            from torchvision import transforms
+            self._uni_transform = transforms.Compose([
+                transforms.Resize((224, 224)),
+                transforms.ToTensor(),
+                transforms.Normalize(mean=(0.485, 0.456, 0.406), std=(0.229, 0.224, 0.225)),
+            ])
+        return self._uni_transform
 
     @staticmethod
     def _preprocess_image(img: Image.Image) -> Image.Image:
@@ -88,6 +65,49 @@ class ClipEmbedder:
         enhancer = ImageEnhance.Brightness(img)
         img = enhancer.enhance(1.1)
         return img
+
+    def embed_text(self, text: str, use_minilm: bool = False) -> np.ndarray:
+        inputs = self.plip_processor(text=[text], return_tensors="pt", padding=True, truncation=True, max_length=77)
+        inputs = {k: v.to(self.device) for k, v in inputs.items()}
+        with torch.no_grad():
+            text_out = self.plip_model.text_model(**inputs)
+            emb = self.plip_model.text_projection(text_out.pooler_output)
+        emb = emb.cpu().numpy().flatten()
+        return emb / np.linalg.norm(emb)
+
+    def embed_texts(self, texts: list[str], use_minilm: bool = False) -> list[np.ndarray]:
+        inputs = self.plip_processor(text=texts, return_tensors="pt", padding=True, truncation=True, max_length=77)
+        inputs = {k: v.to(self.device) for k, v in inputs.items()}
+        with torch.no_grad():
+            text_out = self.plip_model.text_model(**inputs)
+            embs = self.plip_model.text_projection(text_out.pooler_output)
+        embs = embs.cpu().numpy()
+        return [e / np.linalg.norm(e) for e in embs]
+
+    def embed_image(self, image_path: str, preprocess: bool = True) -> dict:
+        img = Image.open(image_path).convert("RGB")
+        if preprocess:
+            img = self._preprocess_image(img)
+        
+        # PLIP
+        plip_inputs = self.plip_processor(images=img, return_tensors="pt")
+        plip_inputs = {k: v.to(self.device) for k, v in plip_inputs.items()}
+        with torch.no_grad():
+            vision_out = self.plip_model.vision_model(**plip_inputs)
+            plip_emb = self.plip_model.visual_projection(vision_out.pooler_output)
+        plip_emb = plip_emb.cpu().numpy().flatten()
+        plip_emb = plip_emb / np.linalg.norm(plip_emb)
+
+        # UNI
+        uni_tensor = self.uni_transform(img).unsqueeze(0).to(self.device)
+        with torch.no_grad():
+            uni_emb = self.uni_model(uni_tensor)
+        uni_emb = uni_emb.cpu().numpy().flatten()
+        
+        return {
+            "uni": uni_emb,
+            "plip": plip_emb
+        }
 
     def compute_similarity(self, vec_a: np.ndarray, vec_b: np.ndarray) -> float:
         return float(np.dot(vec_a, vec_b))

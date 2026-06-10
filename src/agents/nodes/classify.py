@@ -1,6 +1,6 @@
 import logging
 from src.agents.state import AgentState
-from src.models.embeddings import ClipEmbedder
+from src.models.embeddings import MultimodalEmbedder
 from src.models.llm import LLMProvider
 from src.search.semantic_classifier import ClasificadorSemantico
 
@@ -18,7 +18,7 @@ Maximo 3 elementos por categoria. Si no hay, lista vacia.
 Texto: {texto}"""
 
 
-async def nodo_clasificar(state: AgentState, embedder: ClipEmbedder, clasificador: ClasificadorSemantico) -> AgentState:
+async def nodo_clasificar(state: AgentState, embedder: MultimodalEmbedder, clasificador: ClasificadorSemantico) -> AgentState:
     state["trayectoria"].append({"nodo": "clasificar", "accion": "inicio"})
 
     query_text = state["query_reescrita"]
@@ -50,7 +50,12 @@ async def nodo_clasificar(state: AgentState, embedder: ClipEmbedder, clasificado
         logger.warning(f"Error extrayendo entidades: {e}")
         state["entidades"] = {"tejidos": [], "estructuras": [], "tinciones": []}
 
-    domain_valid = clasificador.clasificar(query_text, state["texto_embedding"])
+    if state.get("tiene_imagen"):
+        domain_valid = True
+        logger.debug("Clasificacion semantica: Omitida porque se subio una imagen (siempre en temario).")
+    else:
+        domain_valid = clasificador.clasificar(query_text, state["texto_embedding"])
+        
     state["en_temario"] = domain_valid
     state["trayectoria"].append({"nodo": "clasificar", "en_temario": domain_valid})
 

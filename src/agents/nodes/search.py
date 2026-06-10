@@ -15,7 +15,10 @@ async def nodo_buscar(state: AgentState, indexer: QdrantIndexer) -> AgentState:
         return state
 
     text_vec = state["texto_embedding"]
-    image_vec = state.get("imagen_embedding") if state.get("imagen_embedding") else None
+    image_vec = None
+    if state.get("imagen_embedding"):
+        # Extraer el vector UNI para búsqueda de imágenes visuales
+        image_vec = state["imagen_embedding"].get("uni")
 
     modo = state["modo"]
     text_threshold = Config.SIMILARITY_THRESHOLD_TEXTO
@@ -31,7 +34,7 @@ async def nodo_buscar(state: AgentState, indexer: QdrantIndexer) -> AgentState:
         text_threshold = 0.60
         image_threshold = 0.70
 
-    if text_vec:
+    if text_vec or image_vec:
         resultados = indexer.hybrid_search(
             text_vec=text_vec,
             image_vec=image_vec,

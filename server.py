@@ -15,7 +15,22 @@ from src.agents.graph import AsistenteHistologia
 from src.api.routes import setup_routes
 from src.config import Config
 
-logging.basicConfig(level=logging.INFO, format="%(asctime)s [%(levelname)s] %(name)s: %(message)s")
+class ColorFormatter(logging.Formatter):
+    RED = "\033[91m"
+    YELLOW = "\033[93m"
+    RESET = "\033[0m"
+
+    def format(self, record):
+        if record.levelno >= logging.ERROR:
+            # Pinta todo el mensaje de error en rojo
+            return f"{self.RED}{super().format(record)}{self.RESET}"
+        elif record.levelno == logging.WARNING:
+            return f"{self.YELLOW}{super().format(record)}{self.RESET}"
+        return super().format(record)
+
+_handler = logging.StreamHandler()
+_handler.setFormatter(ColorFormatter("%(asctime)s [%(levelname)s] %(name)s: %(message)s"))
+logging.basicConfig(level=logging.INFO, handlers=[_handler], force=True)
 logger = logging.getLogger("server")
 
 asistente = None
@@ -30,6 +45,11 @@ async def lifespan(app: FastAPI):
         asistente = AsistenteHistologia()
         routes_mod.asistente = asistente
         asistente.indexer.ensure_collections()
+        
+        from src.ingestion.pipeline import ingest_pdfs
+        logger.info("Verificando PDFs en la carpeta data/pdf para auto-indexacion...")
+        ingest_pdfs(reindex=False, indexer=asistente.indexer)
+        
         status = asistente.get_status()
         logger.info(f"Asistente listo: {status}")
     except Exception as e:
