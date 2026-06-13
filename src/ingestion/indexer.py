@@ -11,9 +11,7 @@ logger = logging.getLogger(__name__)
 
 
 class QdrantIndexer:
-    def __init__(self, url: str = None, api_key: str = None, embedder: MultimodalEmbedder = None):
-        self.url = url or Config.QDRANT_URL
-        self.api_key = api_key or Config.QDRANT_API_KEY
+    def __init__(self, embedder: MultimodalEmbedder = None):
         self.embedder = embedder or MultimodalEmbedder()
         self.client = QdrantClient(path=Config.DIRECTORIO_QDRANT_MEMORIA)
         self.col_texto = Config.QDRANT_COLLECTION_TEXTO

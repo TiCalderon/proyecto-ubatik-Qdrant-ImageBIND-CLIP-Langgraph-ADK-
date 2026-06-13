@@ -8,11 +8,9 @@ class Config:
     GOOGLE_API_KEY = os.getenv("GOOGLE_API_KEY", "")
     GROQ_API_KEY = os.getenv("GROQ_API_KEY", "")
     HF_TOKEN = os.getenv("HF_TOKEN", "")
-    QDRANT_URL = os.getenv("QDRANT_URL", "http://localhost:6333")
-    QDRANT_API_KEY = os.getenv("QDRANT_API_KEY", "")
-    QDRANT_COLLECTION = "histologia_g3_multimodal"
-    QDRANT_COLLECTION_TEXTO = "histologia_g3_chunks"
-    QDRANT_COLLECTION_IMAGENES = "histologia_g3_imagenes"
+    QDRANT_COLLECTION = os.getenv("QDRANT_COLLECTION", "histologia_g3_multimodal")
+    QDRANT_COLLECTION_TEXTO = os.getenv("QDRANT_COLLECTION_TEXTO", "histologia_g3_chunks")
+    QDRANT_COLLECTION_IMAGENES = os.getenv("QDRANT_COLLECTION_IMAGENES", "histologia_g3_imagenes")
     LANGSMITH_API_KEY = os.getenv("LANGSMITH_API_KEY", "")
     LANGSMITH_ENDPOINT = os.getenv("LANGSMITH_ENDPOINT", "https://api.smith.langchain.com")
     LANGSMITH_PROJECT = os.getenv("LANGSMITH_PROJECT", "ubatik-rag-histologia-g3")

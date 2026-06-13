@@ -66,7 +66,7 @@ class MultimodalEmbedder:
         img = enhancer.enhance(1.1)
         return img
 
-    def embed_text(self, text: str, use_minilm: bool = False) -> np.ndarray:
+    def embed_text(self, text: str) -> np.ndarray:
         inputs = self.plip_processor(text=[text], return_tensors="pt", padding=True, truncation=True, max_length=77)
         inputs = {k: v.to(self.device) for k, v in inputs.items()}
         with torch.no_grad():
@@ -75,7 +75,7 @@ class MultimodalEmbedder:
         emb = emb.cpu().numpy().flatten()
         return emb / np.linalg.norm(emb)
 
-    def embed_texts(self, texts: list[str], use_minilm: bool = False) -> list[np.ndarray]:
+    def embed_texts(self, texts: list[str]) -> list[np.ndarray]:
         inputs = self.plip_processor(text=texts, return_tensors="pt", padding=True, truncation=True, max_length=77)
         inputs = {k: v.to(self.device) for k, v in inputs.items()}
         with torch.no_grad():

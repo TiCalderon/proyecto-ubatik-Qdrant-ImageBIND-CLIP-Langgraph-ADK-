@@ -17,13 +17,13 @@ class ClasificadorSemantico:
         if self._anchor_embeddings is None:
             self._anchor_embeddings = []
             for anchor in self.anchors:
-                emb = self.embedder.embed_text(anchor, use_minilm=False)
+                emb = self.embedder.embed_text(anchor)
                 self._anchor_embeddings.append(emb)
         return self._anchor_embeddings
 
     def clasificar(self, query: str, query_embedding: list[float] = None) -> bool:
         if query_embedding is None:
-            query_embedding = self.embedder.embed_text(query, use_minilm=False)
+            query_embedding = self.embedder.embed_text(query)
         query_vec = np.array(query_embedding)
 
         max_sim = 0.0

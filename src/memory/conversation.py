@@ -71,7 +71,7 @@ class ConversationMemory:
     def _store_summary(self, interaction: dict):
         try:
             text = f"Pregunta: {interaction['query']}\nRespuesta: {interaction['response']}"
-            vec = self.embedder.embed_text(text, use_minilm=False)
+            vec = self.embedder.embed_text(text)
             self.client.upsert(
                 collection_name=self.collection,
                 points=[qmodels.PointStruct(
@@ -100,7 +100,7 @@ class ConversationMemory:
 
     def get_context(self, query: str = "") -> str:
         parts = []
-        if self.active_image_analysis and self.turn_count <= self.history[-1]["turno"] + 3 if self.history else True:
+        if self.history and self.active_image_analysis and self.turn_count <= self.history[-1]["turno"] + 3:
             parts.append(f"[Imagen activa analisis previo]: {self.active_image_analysis[:400]}")
         return "\n".join(parts)
 

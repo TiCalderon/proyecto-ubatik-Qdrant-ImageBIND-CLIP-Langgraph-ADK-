@@ -21,9 +21,9 @@ logger = logging.getLogger(__name__)
 class AsistenteHistologia:
     def __init__(self):
         self.embedder = MultimodalEmbedder()
-        self.indexer = QdrantIndexer()
+        self.indexer = QdrantIndexer(embedder=self.embedder)
         self.clasificador = ClasificadorSemantico(self.embedder)
-        self.memory = ConversationMemory()
+        self.memory = ConversationMemory(embedder=self.embedder)
         self.graph = None
         self.checkpointer = MemorySaver()
         self._build_graph()
@@ -31,7 +31,7 @@ class AsistenteHistologia:
     def _build_graph(self):
         builder = StateGraph(AgentState)
 
-        builder.add_node("inicializar", self._wrap(nodo_inicializar, self.embedder, self.memory))
+        builder.add_node("inicializar", self._wrap(nodo_inicializar, self.memory))
         builder.add_node("procesar_imagen", self._wrap(nodo_procesar_imagen, self.embedder))
         builder.add_node("clasificar", self._wrap(nodo_clasificar, self.embedder, self.clasificador))
         builder.add_node("generar_consulta", self._wrap(nodo_generar_consulta, self.embedder))

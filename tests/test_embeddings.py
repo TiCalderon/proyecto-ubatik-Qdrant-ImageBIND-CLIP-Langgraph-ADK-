@@ -23,8 +23,8 @@ def test_embed_texts(embedder):
         assert v.shape == (512,)
 
 
-def test_embed_text_minilm(embedder):
-    vec = embedder.embed_text("cartilago", use_minilm=True)
+def test_embed_text_plip(embedder):
+    vec = embedder.embed_text("cartilago")
     assert isinstance(vec, np.ndarray)
     assert len(vec) > 0
 

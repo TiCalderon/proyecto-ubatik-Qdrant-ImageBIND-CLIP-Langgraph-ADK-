@@ -26,7 +26,7 @@ async def nodo_clasificar(state: AgentState, embedder: MultimodalEmbedder, clasi
         query_text += " " + state["imagen_analisis"][:500]
 
     try:
-        emb = embedder.embed_text(query_text, use_minilm=False)
+        emb = embedder.embed_text(query_text)
         state["texto_embedding"] = emb.tolist()
     except Exception as e:
         logger.error(f"Error generando texto embedding: {e}")
@@ -50,8 +50,8 @@ async def nodo_clasificar(state: AgentState, embedder: MultimodalEmbedder, clasi
         logger.warning(f"Error extrayendo entidades: {e}")
         state["entidades"] = {"tejidos": [], "estructuras": [], "tinciones": []}
 
+    domain_valid = True
     if state.get("tiene_imagen"):
-        domain_valid = True
         logger.debug("Clasificacion semantica: Omitida porque se subio una imagen (siempre en temario).")
     else:
         domain_valid = clasificador.clasificar(query_text, state["texto_embedding"])
