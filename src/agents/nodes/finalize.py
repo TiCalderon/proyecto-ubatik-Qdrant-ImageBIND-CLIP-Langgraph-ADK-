@@ -2,58 +2,67 @@ import os
 import re
 import base64
 import logging
-import numpy as np
 from src.agents.state import AgentState
 from src.models.embeddings import MultimodalEmbedder
+from src.ingestion.indexer import QdrantIndexer
 from src.memory.conversation import ConversationMemory
+from src.config import Config
 
 logger = logging.getLogger(__name__)
 
 
-async def nodo_finalizar(state: AgentState, embedder: MultimodalEmbedder, memory: ConversationMemory) -> AgentState:
+async def nodo_finalizar(
+    state: AgentState,
+    embedder: MultimodalEmbedder,
+    memory: ConversationMemory,
+    indexer: QdrantIndexer,
+) -> AgentState:
     state["trayectoria"].append({"nodo": "finalizar", "accion": "inicio"})
 
     respuesta = state.get("respuesta", "")
-    imagenes_detectadas = _extraer_referencias_imagenes(respuesta)
+    query_vec = state.get("texto_embedding", [])
+    max_imgs = Config.MAX_IMAGES_POR_RESPUESTA
 
+    # ── Búsqueda por similitud coseno query ↔ caption directamente en Qdrant ──
+    caption_results = []
+    if query_vec:
+        caption_results = indexer.caption_search(
+            query_vec=query_vec,
+            top_k=max_imgs,
+            threshold=Config.IMAGE_CAPTION_SIMILARITY_THRESHOLD,
+        )
+        logger.info(f"caption_search devolvió {len(caption_results)} imágenes")
+
+    # ── Construir lista final con base64 ──
     imagenes_recuperadas = []
-    for label in imagenes_detectadas:
-        for img_dict in state.get("contexto_filtrado", {}).get("imagenes", []):
-            if img_dict.get("etiqueta", "").lower() == label.lower():
-                path = img_dict.get("path", "")
-                nombre = img_dict.get("nombre_archivo", "")
-                if path and os.path.exists(path):
-                    try:
-                        with open(path, "rb") as f:
-                            b64 = base64.b64encode(f.read()).decode("utf-8")
-                    except Exception:
-                        b64 = ""
-                else:
-                    b64 = ""
-                imagenes_recuperadas.append({
-                    "etiqueta": label,
-                    "nombre_archivo": nombre,
-                    "path": path,
-                    "base64": b64,
-                    "caption": img_dict.get("caption", ""),
-                    "pagina": img_dict.get("pagina", 0),
-                    "score": img_dict.get("score", 0),
-                })
-                break
+    seen_nombres = set()
+    for score, payload in caption_results:
+        nombre = payload.get("nombre_archivo", "")
+        if nombre in seen_nombres:
+            continue
+        seen_nombres.add(nombre)
+        path = payload.get("path", "")
+        if path and os.path.exists(path):
+            try:
+                with open(path, "rb") as f:
+                    b64 = base64.b64encode(f.read()).decode("utf-8")
+            except Exception:
+                b64 = ""
+        else:
+            b64 = ""
+        imagenes_recuperadas.append({
+            "etiqueta": payload.get("etiqueta", ""),
+            "nombre_archivo": nombre,
+            "path": path,
+            "base64": b64,
+            "caption": payload.get("caption", "") or payload.get("texto_pagina", "")[:300],
+            "pagina": payload.get("pagina", 0),
+            "score": round(score, 4),
+        })
 
-    if not imagenes_recuperadas and state.get("modo") in ("solicitud_imagenes", "multimodal"):
-        sem_matches = _busqueda_semantica_etiquetas(respuesta, state, embedder)
-        for sm in sem_matches:
-            if sm["etiqueta"] not in [ir["etiqueta"] for ir in imagenes_recuperadas]:
-                imagenes_recuperadas.append(sm)
-
-    state["imagenes_detectadas"] = imagenes_detectadas
+    state["imagenes_detectadas"] = _extraer_referencias_imagenes(respuesta)
     state["imagenes_recuperadas"] = imagenes_recuperadas
-
-    if imagenes_recuperadas:
-        state["mostrar_imagenes"] = True
-    else:
-        state["mostrar_imagenes"] = state.get("solicita_imagenes", False)
+    state["mostrar_imagenes"] = len(imagenes_recuperadas) > 0
 
     memory.add_interaction(
         query=state["query_original"],
@@ -65,7 +74,7 @@ async def nodo_finalizar(state: AgentState, embedder: MultimodalEmbedder, memory
 
     state["trayectoria"].append({
         "nodo": "finalizar",
-        "imagenes_detectadas": len(imagenes_detectadas),
+        "caption_results": len(caption_results),
         "imagenes_recuperadas": len(imagenes_recuperadas),
     })
     return state
@@ -81,41 +90,3 @@ def _extraer_referencias_imagenes(texto: str) -> list[str]:
         for match in re.finditer(pat, texto, re.IGNORECASE):
             encontradas.add(match.group(0).strip())
     return list(encontradas)[:10]
-
-
-def _busqueda_semantica_etiquetas(respuesta: str, state: AgentState, embedder: MultimodalEmbedder) -> list[dict]:
-    matches = []
-    try:
-        if not state.get("contexto_filtrado", {}).get("imagenes"):
-            return matches
-        query_vec = np.array(state.get("texto_embedding", []))
-        if len(query_vec) == 0:
-            query_vec = embedder.embed_text(respuesta[:500])
-        for img in state["contexto_filtrado"]["imagenes"][:10]:
-            etiqueta = img.get("etiqueta", "")
-            caption = img.get("caption", "")
-            path = img.get("path", "")
-            if etiqueta or caption:
-                etiqueta_vec = embedder.embed_text(etiqueta + " " + caption[:200])
-                sim = float(np.dot(query_vec, etiqueta_vec))
-                if sim > 0.55:
-                    nombre = img.get("nombre_archivo", "")
-                    b64 = ""
-                    if path and os.path.exists(path):
-                        try:
-                            with open(path, "rb") as f:
-                                b64 = base64.b64encode(f.read()).decode("utf-8")
-                        except Exception:
-                            pass
-                    matches.append({
-                        "etiqueta": etiqueta,
-                        "nombre_archivo": nombre,
-                        "path": path,
-                        "base64": b64,
-                        "caption": caption,
-                        "score": sim,
-                    })
-        matches.sort(key=lambda x: x["score"], reverse=True)
-    except Exception as e:
-        logger.warning(f"Error en busqueda semantica de etiquetas: {e}")
-    return matches[:5]

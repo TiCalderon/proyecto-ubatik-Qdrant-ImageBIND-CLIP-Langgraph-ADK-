@@ -28,6 +28,10 @@ class Config:
     DIM_PLIP = 512
     SIMILARITY_THRESHOLD_TEXTO = 0.65
     SIMILARITY_THRESHOLD_IMAGEN = 0.75
+    # Umbral de similitud coseno (query embedding vs caption embedding) para seleccionar imágenes
+    IMAGE_CAPTION_SIMILARITY_THRESHOLD = 0.1
+    # Cantidad fija de imágenes a devolver al usuario por respuesta
+    MAX_IMAGES_POR_RESPUESTA = 3
     CLASIFICADOR_SEMANTICO_THRESHOLD = 0.45
     CLASIFICADOR_IMAGEN_THRESHOLD = 0.27
     TOP_K_TEXTO = 10

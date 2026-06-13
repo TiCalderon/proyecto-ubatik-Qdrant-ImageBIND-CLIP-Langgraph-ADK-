@@ -38,7 +38,7 @@ class AsistenteHistologia:
         builder.add_node("buscar", self._wrap(nodo_buscar, self.indexer))
         builder.add_node("filtrar_contexto", self._wrap(nodo_filtrar_contexto))
         builder.add_node("generar_respuesta", self._wrap(nodo_generar_respuesta, self.memory))
-        builder.add_node("finalizar", self._wrap(nodo_finalizar, self.embedder, self.memory))
+        builder.add_node("finalizar", self._wrap(nodo_finalizar, self.embedder, self.memory, self.indexer))
 
         builder.add_edge(START, "inicializar")
 

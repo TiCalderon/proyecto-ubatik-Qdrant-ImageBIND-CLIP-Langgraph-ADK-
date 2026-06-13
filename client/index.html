@@ -17,6 +17,7 @@
         <span id="status-dot" class="status-dot offline"></span>
         <span id="status-text" class="status-text">Conectando...</span>
         <button id="btn-temario" class="btn-ghost" title="Ver temario">Temario</button>
+        <button id="btn-reindex" class="btn-ghost btn-reindex" title="Re-procesar PDFs del manual">&#x21BB; Reindexar</button>
         <button id="btn-clear-img" class="btn-ghost" title="Limpiar imagen activa">Limpiar</button>
       </div>
     </header>
@@ -67,6 +68,23 @@
     <span class="lightbox-close">&times;</span>
     <img id="lightbox-img" src="" alt="Imagen ampliada">
     <div id="lightbox-caption" class="lightbox-caption"></div>
+  </div>
+
+  <div id="reindex-modal" class="reindex-modal" style="display:none;">
+    <div class="reindex-modal-box">
+      <div class="reindex-modal-header">
+        <h3>&#x21BB; Reindexar PDFs</h3>
+        <button id="btn-close-reindex" class="btn-ghost">&times;</button>
+      </div>
+      <p class="reindex-desc">
+        Esto eliminará el índice actual y procesará de nuevo todos los PDFs en <code>data/pdf/</code>, extrayendo texto e imágenes. El proceso puede tardar varios minutos.
+      </p>
+      <div id="reindex-status-box" class="reindex-status-box" style="display:none;"></div>
+      <div class="reindex-modal-actions">
+        <button id="btn-confirm-reindex" class="btn-send">Confirmar y Reindexar</button>
+        <button id="btn-cancel-reindex" class="btn-ghost">Cancelar</button>
+      </div>
+    </div>
   </div>
 
   <script src="/app.js"></script>

@@ -82,23 +82,39 @@ function showGallery(images) {
   images.forEach((img, i) => {
     const card = document.createElement('div');
     card.className = 'gallery-card';
+
     const imgEl = document.createElement('img');
     imgEl.src = img.base64 ? 'data:image/png;base64,' + img.base64 : '/imagenes_extraidas/' + img.nombre_archivo;
     imgEl.alt = img.etiqueta || 'Imagen ' + (i + 1);
-    imgEl.onclick = () => openLightbox(imgEl.src, img.etiqueta || img.caption);
+    const caption = img.caption || '';
+    imgEl.onclick = () => openLightbox(imgEl.src, (img.etiqueta ? img.etiqueta + ' — ' : '') + caption);
     card.appendChild(imgEl);
+
+    const meta = document.createElement('div');
+    meta.className = 'gallery-card-meta';
+
     if (img.etiqueta) {
       const lbl = document.createElement('span');
       lbl.className = 'gallery-label';
       lbl.textContent = img.etiqueta;
-      card.appendChild(lbl);
+      meta.appendChild(lbl);
     }
-    if (img.caption) {
+
+    if (caption) {
       const cap = document.createElement('span');
       cap.className = 'gallery-caption';
-      cap.textContent = img.caption.substring(0, 80);
-      card.appendChild(cap);
+      cap.textContent = caption;
+      meta.appendChild(cap);
     }
+
+    if (img.pagina) {
+      const pg = document.createElement('span');
+      pg.className = 'gallery-page';
+      pg.textContent = 'Pág. ' + img.pagina;
+      meta.appendChild(pg);
+    }
+
+    card.appendChild(meta);
     galleryGrid.appendChild(card);
   });
   imageGallery.style.display = 'block';
@@ -260,3 +276,93 @@ async function checkStatus() {
 
 checkStatus();
 setInterval(checkStatus, 15000);
+
+// ─── Reindexar Modal ────────────────────────────────────────────────────────
+
+const reindexModal   = $('#reindex-modal');
+const reindexStatus  = $('#reindex-status-box');
+const btnReindex     = $('#btn-reindex');
+const btnCloseReindex   = $('#btn-close-reindex');
+const btnCancelReindex  = $('#btn-cancel-reindex');
+const btnConfirmReindex = $('#btn-confirm-reindex');
+
+let reindexPollInterval = null;
+
+function openReindexModal() {
+  reindexStatus.style.display = 'none';
+  reindexStatus.innerHTML = '';
+  reindexStatus.className = 'reindex-status-box';
+  btnConfirmReindex.disabled = false;
+  btnConfirmReindex.textContent = 'Confirmar y Reindexar';
+  reindexModal.style.display = 'flex';
+}
+
+function closeReindexModal() {
+  reindexModal.style.display = 'none';
+  if (reindexPollInterval) { clearInterval(reindexPollInterval); reindexPollInterval = null; }
+}
+
+function setReindexStatus(html, type) {
+  reindexStatus.style.display = 'block';
+  reindexStatus.innerHTML = html;
+  reindexStatus.className = 'reindex-status-box ' + (type || '');
+}
+
+async function pollReindexStatus() {
+  try {
+    const resp = await fetch('/api/reindex/status');
+    const data = await resp.json();
+    if (data.running) {
+      setReindexStatus('<span class="reindex-spinner"></span> Procesando PDFs… esto puede tardar varios minutos.', 'running');
+    } else {
+      clearInterval(reindexPollInterval);
+      reindexPollInterval = null;
+      btnConfirmReindex.disabled = false;
+      btnConfirmReindex.textContent = 'Confirmar y Reindexar';
+      if (data.error) {
+        setReindexStatus('&#10060; Error durante la reindexación: ' + data.error, 'error');
+      } else if (data.resultado) {
+        const r = data.resultado;
+        const counts = r.counts || {};
+        setReindexStatus(
+          `&#10004; Reindexación completada.<br>
+           <strong>${r.chunks || 0}</strong> chunks · <strong>${r.imagenes || 0}</strong> imágenes procesadas.<br>
+           Total en base de datos: ${counts.texto || '?'} textos · ${counts.imagenes || '?'} imágenes.`,
+          'success'
+        );
+        checkStatus(); // Actualizar el indicador de estado del header
+      }
+    }
+  } catch (e) {
+    clearInterval(reindexPollInterval);
+    setReindexStatus('&#10060; No se pudo obtener el estado: ' + e.message, 'error');
+  }
+}
+
+btnReindex.addEventListener('click', openReindexModal);
+btnCloseReindex.addEventListener('click', closeReindexModal);
+btnCancelReindex.addEventListener('click', closeReindexModal);
+reindexModal.addEventListener('click', (e) => { if (e.target === reindexModal) closeReindexModal(); });
+
+btnConfirmReindex.addEventListener('click', async () => {
+  btnConfirmReindex.disabled = true;
+  btnConfirmReindex.textContent = 'Iniciando…';
+  setReindexStatus('<span class="reindex-spinner"></span> Enviando solicitud…', 'running');
+  try {
+    const resp = await fetch('/api/reindex', { method: 'POST' });
+    const data = await resp.json();
+    if (!data.ok) {
+      setReindexStatus('&#9888; ' + (data.message || 'No se pudo iniciar.'), 'error');
+      btnConfirmReindex.disabled = false;
+      btnConfirmReindex.textContent = 'Confirmar y Reindexar';
+      return;
+    }
+    // Empezar a consultar el estado cada 3 segundos
+    reindexPollInterval = setInterval(pollReindexStatus, 3000);
+    pollReindexStatus();
+  } catch (e) {
+    setReindexStatus('&#10060; Error de red: ' + e.message, 'error');
+    btnConfirmReindex.disabled = false;
+    btnConfirmReindex.textContent = 'Confirmar y Reindexar';
+  }
+});
