@@ -39,7 +39,8 @@ class QdrantIndexer:
             self.col_imagenes, 
             {
                 "uni": qmodels.VectorParams(size=Config.DIM_UNI, distance=qmodels.Distance.COSINE),
-                "plip": qmodels.VectorParams(size=Config.DIM_PLIP, distance=qmodels.Distance.COSINE)
+                "plip": qmodels.VectorParams(size=Config.DIM_PLIP, distance=qmodels.Distance.COSINE),
+                "caption_text": qmodels.VectorParams(size=Config.DIM_PLIP, distance=qmodels.Distance.COSINE),
             }
         )
 
@@ -79,9 +80,13 @@ class QdrantIndexer:
                     logger.warning(f"Imagen no encontrada: {img['path']}")
                     continue
                 vecs = self.embedder.embed_image(img["path"], preprocess=False)
+                caption_raw = img.get("caption", "") or img.get("texto_pagina", "")[:300]
+                etiqueta_raw = img.get("etiqueta", "")
+                caption_text = (etiqueta_raw + " " + caption_raw).strip()[:400]
+                caption_vec = self.embedder.embed_text(caption_text) if caption_text else self.embedder.embed_text("imagen histologica")
                 points.append(qmodels.PointStruct(
                     id=uuid.uuid4().hex,
-                    vector={"uni": vecs["uni"].tolist(), "plip": vecs["plip"].tolist()},
+                    vector={"uni": vecs["uni"].tolist(), "plip": vecs["plip"].tolist(), "caption_text": caption_vec.tolist()},
                     payload={
                         "tipo": "imagen",
                         "path": img["path"],
@@ -127,6 +132,23 @@ class QdrantIndexer:
             score_threshold=threshold,
         )
         return [(r.score, r.payload) for r in response.points]
+
+    def caption_search(self, query_vec: list[float], top_k: int = 3, threshold: float = None) -> list:
+        """Busca imágenes por similitud coseno entre el embedding de la query y el vector caption_text."""
+        threshold = threshold if threshold is not None else Config.IMAGE_CAPTION_SIMILARITY_THRESHOLD
+        try:
+            response = self.client.query_points(
+                collection_name=self.col_imagenes,
+                query=query_vec,
+                using="caption_text",
+                limit=top_k,
+                score_threshold=threshold,
+            )
+            return [(r.score, r.payload) for r in response.points]
+        except Exception as e:
+            logger.warning(f"caption_search falló (colección puede no tener el vector 'caption_text' aún): {e}")
+            return []
+
 
     def hybrid_search(
         self,

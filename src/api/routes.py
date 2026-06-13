@@ -89,3 +89,37 @@ def setup_routes(app: FastAPI):
         if asistente:
             asistente.memory.clear_image()
         return ImageClearResponse(ok=True)
+
+    # Estado compartido de reindexación
+    _reindex_state = {"running": False, "resultado": None, "error": None}
+
+    @app.post("/api/reindex")
+    async def api_reindex(background_tasks: __import__("fastapi").BackgroundTasks):
+        from fastapi import BackgroundTasks
+        if _reindex_state["running"]:
+            return JSONResponse(content={"ok": False, "message": "Ya hay una reindexación en curso."}, status_code=409)
+
+        def _run_reindex():
+            from src.ingestion.pipeline import ingest_pdfs
+            _reindex_state["running"] = True
+            _reindex_state["resultado"] = None
+            _reindex_state["error"] = None
+            try:
+                resultado = ingest_pdfs(reindex=True, indexer=asistente.indexer if asistente else None)
+                _reindex_state["resultado"] = resultado
+            except Exception as e:
+                logger.error(f"Error en reindexación: {e}")
+                _reindex_state["error"] = str(e)
+            finally:
+                _reindex_state["running"] = False
+
+        background_tasks.add_task(_run_reindex)
+        return JSONResponse(content={"ok": True, "message": "Reindexación iniciada en segundo plano."})
+
+    @app.get("/api/reindex/status")
+    async def api_reindex_status():
+        return JSONResponse(content={
+            "running": _reindex_state["running"],
+            "resultado": _reindex_state["resultado"],
+            "error": _reindex_state["error"],
+        })

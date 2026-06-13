@@ -62,35 +62,99 @@ class PDFExtractor:
     ) -> list[dict]:
         if not self.doc:
             self.open()
+        import io
         imagenes = []
+        safe_name = re.sub(r'[^a-zA-Z0-9_]', '_', self.pdf_filename.replace(".pdf", ""))
+
         for page_num in range(len(self.doc)):
             page = self.doc[page_num]
-            pix = page.get_pixmap(dpi=150)
-            safe_name = re.sub(r'[^a-zA-Z0-9_]', '_', self.pdf_filename.replace(".pdf", ""))
-            filename = f"{safe_name}_pag{page_num+1:03d}.png"
-            output_path = os.path.join(self.output_dir, filename)
-            pix.save(output_path)
-            
             page_text = page.get_text("text")
-            
-            # Since we render the whole page, OCR is not strictly needed because we have page_text,
-            # but we can keep it empty to save processing time.
-            ocr_text = ""
-            caption = self._extraer_caption(page_text, {}, page)
-            label = self._extraer_etiqueta(page_text)
-            
-            imagenes.append({
-                "path": output_path,
-                "nombre_archivo": filename,
-                "fuente_pdf": self.pdf_filename,
-                "pagina": page_num + 1,
-                "ocr_text": ocr_text,
-                "texto_pagina": page_text.strip()[:2000],
-                "caption": caption,
-                "etiqueta": label,
-                "width": pix.width,
-                "height": pix.height,
-            })
+            image_list = page.get_images(full=True)
+
+            # Recopilar candidatos: imágenes individuales a color
+            candidatos = []
+            seen_xrefs = set()
+            for img_info in image_list:
+                xref = img_info[0]
+                if xref in seen_xrefs:
+                    continue
+                seen_xrefs.add(xref)
+                
+                # CRÍTICO: Verificar que la imagen realmente se dibuja en esta página
+                if not page.get_image_rects(xref):
+                    continue
+
+                try:
+                    base_image = self.doc.extract_image(xref)
+                except Exception:
+                    continue
+                if not base_image:
+                    continue
+                w, h = base_image["width"], base_image["height"]
+                if w < min_width or h < min_height:
+                    continue
+                
+                try:
+                    img = Image.open(io.BytesIO(base_image["image"])).convert("RGB")
+                    # Calcular área para elegir la más grande si hay varias
+                    candidatos.append({
+                        "xref": xref,
+                        "bytes": base_image["image"],
+                        "img": img,
+                        "width": w,
+                        "height": h,
+                        "area": w * h,
+                    })
+                except Exception as e:
+                    logger.debug(f"Pag {page_num+1} xref={xref}: error cargando imagen: {e}")
+                    continue
+
+            if candidatos:
+                # Elegir la imagen más grande dibujada en la página
+                candidatos.sort(key=lambda c: c["area"], reverse=True)
+                elegida = candidatos[0]
+                img = elegida["img"]
+                img = self._preprocess_image(img)
+                filename = f"{safe_name}_pag{page_num+1:03d}.png"
+                output_path = os.path.join(self.output_dir, filename)
+                img.save(output_path, "PNG")
+                ocr_text = ""
+                caption = self._extraer_caption(page_text, elegida, page)
+                label = self._extraer_etiqueta(page_text)
+                imagenes.append({
+                    "path": output_path,
+                    "nombre_archivo": filename,
+                    "fuente_pdf": self.pdf_filename,
+                    "pagina": page_num + 1,
+                    "ocr_text": ocr_text,
+                    "texto_pagina": page_text.strip()[:2000],
+                    "caption": caption,
+                    "etiqueta": label,
+                    "width": elegida["width"],
+                    "height": elegida["height"],
+                })
+                logger.info(f"Pag {page_num+1}: imagen individual extraída ({elegida['width']}x{elegida['height']})")
+            else:
+                # Fallback: renderizar la página completa (no se encontró imagen de contenido)
+                pix = page.get_pixmap(dpi=150)
+                filename = f"{safe_name}_pag{page_num+1:03d}_render.png"
+                output_path = os.path.join(self.output_dir, filename)
+                pix.save(output_path)
+                caption = self._extraer_caption(page_text, {}, page)
+                label = self._extraer_etiqueta(page_text)
+                imagenes.append({
+                    "path": output_path,
+                    "nombre_archivo": filename,
+                    "fuente_pdf": self.pdf_filename,
+                    "pagina": page_num + 1,
+                    "ocr_text": "",
+                    "texto_pagina": page_text.strip()[:2000],
+                    "caption": caption,
+                    "etiqueta": label,
+                    "width": pix.width,
+                    "height": pix.height,
+                })
+                logger.info(f"Pag {page_num+1}: sin imagen de contenido, se usó render de página completa.")
         return imagenes
 
     @staticmethod
